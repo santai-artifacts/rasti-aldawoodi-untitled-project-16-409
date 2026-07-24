@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a24;
+    --border: #252b3b;
+    --snake: #4ade80;
+    --snake-dark: #16a34a;
+    --food: #f87171;
+    --food-glow: rgba(248, 113, 113, 0.4);
+    --head: #86efac;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --accent: #4ade80;
+  }
+
+  body {
+    background: var(--bg);
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 16px;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    text-shadow: 0 0 24px rgba(74, 222, 128, 0.4);
+    margin-bottom: 12px;
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 20px;
+  }
+
+  .score-box {
+    text-align: center;
+  }
+
+  .score-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .score-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 60px;
+    display: inline-block;
+  }
+
+  #score-val { color: var(--accent); }
+
+  .canvas-wrap {
+    position: relative;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(74,222,128,0.07), 0 24px 60px rgba(0,0,0,0.6);
+  }
+
+  canvas {
+    display: block;
+  }
+
+  /* Overlay */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 15, 20, 0.88);
+    backdrop-filter: blur(6px);
+    border-radius: 12px;
+    gap: 16px;
+    transition: opacity 0.25s;
+  }
+
+  .overlay.hidden { display: none; }
+
+  .overlay-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .overlay-title.green { color: var(--accent); text-shadow: 0 0 20px rgba(74,222,128,0.5); }
+  .overlay-title.red   { color: #f87171;        text-shadow: 0 0 20px rgba(248,113,113,0.5); }
+
+  .overlay-sub {
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: center;
+    max-width: 220px;
+    line-height: 1.5;
+  }
+
+  .final-score {
+    font-size: 1.1rem;
+    color: var(--text);
+  }
+
+  .final-score span { color: var(--accent); font-weight: 700; font-size: 1.4rem; }
+
+  .btn {
+    margin-top: 4px;
+    padding: 10px 32px;
+    background: var(--accent);
+    color: #0d1a0f;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(74,222,128,0.35);
+  }
+
+  .btn:hover  { transform: translateY(-1px); box-shadow: 0 6px 26px rgba(74,222,128,0.5); }
+  .btn:active { transform: translateY(0); }
+
+  .controls {
+    margin-top: 16px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .ctrl-group {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .key {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.68rem;
+    color: var(--text);
+    font-weight: 600;
+    margin: 0 1px;
+  }
+
+  /* Speed indicator */
+  .speed-bar-wrap {
+    margin-top: 14px;
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .speed-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .speed-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 99px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  #speed-bar {
+    height: 100%;
+    width: 10%;
+    background: linear-gradient(90deg, var(--snake), #86efac);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  #speed-level {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* D-pad for mobile */
+  .dpad {
+    display: none;
+    margin-top: 20px;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dpad-row { display: flex; gap: 4px; }
+
+  .dpad-btn {
+    width: 52px;
+    height: 52px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, border-color 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dpad-btn:active { background: var(--border); border-color: var(--accent); }
+
+  @media (pointer: coarse) {
+    .dpad { display: flex; }
+    .controls { display: none; }
+  }
+
+  @media (max-width: 500px) {
+    h1 { font-size: 1.4rem; }
+    .score-value { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Snake</h1>
+
+<div class="scoreboard">
+  <div class="score-box">
+    <div class="score-label">Score</div>
+    <div class="score-value" id="score-val">0</div>
+  </div>
+  <div class="score-box">
+    <div class="score-label">Best</div>
+    <div class="score-value" id="best-val">0</div>
+  </div>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="c"></canvas>
+
+  <!-- Start overlay -->
+  <div class="overlay" id="start-overlay">
+    <div class="overlay-title green">Snake</div>
+    <div class="overlay-sub">Guide the snake to eat food. Don't hit the walls or yourself!</div>
+    <button class="btn" id="start-btn">Start Game</button>
+  </div>
+
+  <!-- Game over overlay -->
+  <div class="overlay hidden" id="gameover-overlay">
+    <div class="overlay-title red">Game Over</div>
+    <div class="final-score" id="final-score">Score: <span>0</span></div>
+    <div class="overlay-sub" id="gameover-sub"></div>
+    <button class="btn" id="restart-btn">Play Again</button>
+  </div>
+</div>
+
+<div class="speed-bar-wrap">
+  <span class="speed-label">Speed</span>
+  <div class="speed-bar-bg"><div id="speed-bar"></div></div>
+  <span id="speed-level">1</span>
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <span class="key">↑</span> <span class="key">↓</span> <span class="key">←</span> <span class="key">→</span><br>Arrow keys
+  </div>
+  <div class="ctrl-group">
+    <span class="key">W</span> <span class="key">A</span> <span class="key">S</span> <span class="key">D</span><br>WASD
+  </div>
+  <div class="ctrl-group">
+    <span class="key">P</span><br>Pause
+  </div>
+</div>
+
+<!-- Mobile D-pad -->
+<div class="dpad">
+  <div class="dpad-row"><button class="dpad-btn" id="d-up">▲</button></div>
+  <div class="dpad-row">
+    <button class="dpad-btn" id="d-left">◀</button>
+    <button class="dpad-btn" id="d-down">▼</button>
+    <button class="dpad-btn" id="d-right">▶</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const COLS = 23, ROWS = 23, CELL = 20;
+  const W = COLS * CELL, H = ROWS * CELL;
+
+  const canvas = document.getElementById('c');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const scoreEl    = document.getElementById('score-val');
+  const bestEl     = document.getElementById('best-val');
+  const finalScore = document.getElementById('final-score');
+  const goSub      = document.getElementById('gameover-sub');
+  const speedBar   = document.getElementById('speed-bar');
+  const speedLevel = document.getElementById('speed-level');
+
+  const startOverlay   = document.getElementById('start-overlay');
+  const gameoverOverlay = document.getElementById('gameover-overlay');
+
+  // Game state
+  let snake, dir, nextDir, food, score, best = 0, running = false, paused = false;
+  let rafId = null, lastTime = 0, stepInterval = 150;
+
+  const BASE_INTERVAL = 150;
+  const MIN_INTERVAL  = 60;
+
+  function getInterval(sc) {
+    // Speed up every 5 points, cap at min
+    return Math.max(MIN_INTERVAL, BASE_INTERVAL - Math.floor(sc / 5) * 10);
+  }
+
+  function getSpeedLevel(sc) { return Math.floor(sc / 5) + 1; }
+
+  function init() {
+    const mid = { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) };
+    snake = [mid, { x: mid.x - 1, y: mid.y }, { x: mid.x - 2, y: mid.y }];
+    dir = { x: 1, y: 0 };
+    nextDir = { x: 1, y: 0 };
+    score = 0;
+    stepInterval = BASE_INTERVAL;
+    placeFood();
+    updateUI();
+  }
+
+  function placeFood() {
+    const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
+    let f;
+    do { f = { x: rand(COLS), y: rand(ROWS) }; }
+    while (occupied.has(`${f.x},${f.y}`));
+    food = f;
+  }
+
+  function rand(n) { return Math.floor(Math.random() * n); }
+
+  function step() {
+    dir = nextDir;
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+    // Wall collision
+    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) { endGame(); return; }
+
+    // Self collision
+    if (snake.some(s => s.x === head.x && s.y === head.y)) { endGame(); return; }
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      stepInterval = getInterval(score);
+      placeFood();
+      // Particle burst (lightweight)
+      spawnParticles(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2);
+    } else {
+      snake.pop();
+    }
+
+    updateUI();
+  }
+
+  function updateUI() {
+    scoreEl.textContent = score;
+    if (score > best) { best = score; bestEl.textContent = best; }
+    const lvl = getSpeedLevel(score);
+    const maxLvl = getSpeedLevel(100); // theoretical max
+    speedBar.style.width = Math.min(100, (lvl / maxLvl) * 100) + '%';
+    speedLevel.textContent = lvl;
+  }
+
+  // ── Particle system ──────────────────────────────────────────────────────────
+  let particles = [];
+  function spawnParticles(cx, cy) {
+    for (let i = 0; i < 10; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 2.5;
+      particles.push({
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        alpha: 1,
+        size: 2 + Math.random() * 2.5,
+        color: Math.random() > 0.5 ? '#f87171' : '#fbbf24'
+      });
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, H); ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(W, y * CELL); ctx.stroke();
+    }
+
+    // Food glow
+    const fx = food.x * CELL + CELL / 2, fy = food.y * CELL + CELL / 2;
+    const grd = ctx.createRadialGradient(fx, fy, 0, fx, fy, CELL * 1.4);
+    grd.addColorStop(0, 'rgba(248,113,113,0.35)');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(fx, fy, CELL * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Food
+    ctx.fillStyle = '#f87171';
+    roundRect(ctx, food.x * CELL + 3, food.y * CELL + 3, CELL - 6, CELL - 6, 4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.arc(food.x * CELL + 7, food.y * CELL + 6, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snake body
+    for (let i = snake.length - 1; i >= 0; i--) {
+      const s = snake[i];
+      const t = i / snake.length;
+      if (i === 0) {
+        // Head
+        const hx = s.x * CELL + 1, hy = s.y * CELL + 1, hs = CELL - 2;
+        const g = ctx.createLinearGradient(hx, hy, hx + hs, hy + hs);
+        g.addColorStop(0, '#86efac'); g.addColorStop(1, '#4ade80');
+        ctx.fillStyle = g;
+        roundRect(ctx, hx, hy, hs, hs, 5);
+        ctx.fill();
+
+        // Eyes
+        drawEyes(s);
+      } else {
+        const alpha = 0.5 + t * 0.5;
+        ctx.fillStyle = `rgba(74, 222, 128, ${alpha})`;
+        const pad = 2;
+        roundRect(ctx, s.x * CELL + pad, s.y * CELL + pad, CELL - pad * 2, CELL - pad * 2, 4);
+        ctx.fill();
+      }
+    }
+
+    // Particles
+    particles = particles.filter(p => p.alpha > 0.02);
+    for (const p of particles) {
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.88; p.vy *= 0.88;
+      p.alpha *= 0.85;
+    }
+    ctx.globalAlpha = 1;
+
+    // Pause vignette
+    if (paused) {
+      ctx.fillStyle = 'rgba(13,15,20,0.7)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 22px Space Grotesk, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('PAUSED', W / 2, H / 2 - 10);
+      ctx.font = '13px Space Grotesk, sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('Press P to resume', W / 2, H / 2 + 18);
+    }
+  }
+
+  function drawEyes(s) {
+    const offsets = getEyeOffsets();
+    ctx.fillStyle = '#0d1a0f';
+    for (const [ox, oy] of offsets) {
+      ctx.beginPath();
+      ctx.arc(s.x * CELL + ox, s.y * CELL + oy, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#fff';
+    for (const [ox, oy] of offsets) {
+      ctx.beginPath();
+      ctx.arc(s.x * CELL + ox - 0.5, s.y * CELL + oy - 0.5, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function getEyeOffsets() {
+    const c = CELL;
+    if (dir.x === 1)  return [[c - 5, 5],    [c - 5, c - 5]];
+    if (dir.x === -1) return [[5,     5],    [5,     c - 5]];
+    if (dir.y === -1) return [[5,     5],    [c - 5, 5]];
+    return                   [[5,     c - 5],[c - 5, c - 5]];
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ── Game loop ────────────────────────────────────────────────────────────────
+  function loop(ts) {
+    if (!running) return;
+    rafId = requestAnimationFrame(loop);
+    if (!paused && ts - lastTime >= stepInterval) {
+      step();
+      lastTime = ts;
+    }
+    draw();
+  }
+
+  function startGame() {
+    init();
+    startOverlay.classList.add('hidden');
+    gameoverOverlay.classList.add('hidden');
+    running = true;
+    paused = false;
+    lastTime = 0;
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function endGame() {
+    running = false;
+    cancelAnimationFrame(rafId);
+    draw(); // freeze frame
+    finalScore.innerHTML = `Score: <span>${score}</span>`;
+    goSub.textContent = score > 0
+      ? (score >= 20 ? '🔥 Incredible run!' : score >= 10 ? 'Nice work! Try to beat it.' : 'Keep practicing!')
+      : 'Better luck next time!';
+    gameoverOverlay.classList.remove('hidden');
+  }
+
+  // ── Input ────────────────────────────────────────────────────────────────────
+  const DIRS = {
+    ArrowUp:    { x: 0, y: -1 }, w: { x: 0, y: -1 }, W: { x: 0, y: -1 },
+    ArrowDown:  { x: 0, y: 1  }, s: { x: 0, y: 1  }, S: { x: 0, y: 1  },
+    ArrowLeft:  { x: -1, y: 0 }, a: { x: -1, y: 0 }, A: { x: -1, y: 0 },
+    ArrowRight: { x: 1, y: 0  }, d: { x: 1, y: 0  }, D: { x: 1, y: 0  },
+  };
+
+  document.addEventListener('keydown', e => {
+    const d = DIRS[e.key];
+    if (d) {
+      e.preventDefault();
+      // Prevent reversing
+      if (d.x !== -dir.x || d.y !== -dir.y) nextDir = d;
+      // Start on first keypress if somehow on start screen (not really needed but nice)
+    } else if ((e.key === 'p' || e.key === 'P') && running) {
+      paused = !paused;
+      if (!paused) { lastTime = performance.now(); }
+    }
+  });
+
+  function dpadPress(d) {
+    if (running && !paused && (d.x !== -dir.x || d.y !== -dir.y)) nextDir = d;
+  }
+
+  document.getElementById('d-up').addEventListener('click',    () => dpadPress({ x: 0,  y: -1 }));
+  document.getElementById('d-down').addEventListener('click',  () => dpadPress({ x: 0,  y: 1  }));
+  document.getElementById('d-left').addEventListener('click',  () => dpadPress({ x: -1, y: 0  }));
+  document.getElementById('d-right').addEventListener('click', () => dpadPress({ x: 1,  y: 0  }));
+
+  document.getElementById('start-btn').addEventListener('click', startGame);
+  document.getElementById('restart-btn').addEventListener('click', startGame);
+
+  // Swipe support
+  let touchStart = null;
+  canvas.addEventListener('touchstart', e => {
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  canvas.addEventListener('touchend', e => {
+    if (!touchStart || !running) return;
+    const dx = e.changedTouches[0].clientX - touchStart.x;
+    const dy = e.changedTouches[0].clientY - touchStart.y;
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    const d = Math.abs(dx) > Math.abs(dy)
+      ? (dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 })
+      : (dy > 0 ? { x: 0, y: 1 } : { x: 0,  y: -1 });
+    if (d.x !== -dir.x || d.y !== -dir.y) nextDir = d;
+    touchStart = null;
+  }, { passive: true });
+
+  // Initial idle draw
+  ctx.fillStyle = '#161a24';
+  ctx.fillRect(0, 0, W, H);
+})();
+</script>
+</body>
+</html>
